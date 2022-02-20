@@ -14,10 +14,45 @@ const formatDate = (date: Date) => {
   return moment(date).format('YYYY-MM-DD');
 }
 
+interface Results {
+  keyword_neg: string[];
+  keyword_pos: string[];
+  overall_score: number;
+}
+
+const SENTIMENT_ENDPOINT = "http://localhost:5000/sentiment";
+
+const scoreToColor = (score: number) => {
+  if (score < 0) {
+    // interpolate between red and white
+    const red = Math.round(255 * (1 + score));
+    return `rgb(${red}, 0, 0)`;
+  } else if (score > 0) {
+    // interpolate between green and white
+    const green = Math.round(255 * (1 - score));
+    return `rgb(0, ${green}, 0)`;
+  }
+  else {
+    return 'white';
+  }
+}
+
+const scoreToEmoji = (score: number) => {
+  if (score < -0.25) {
+    return '😢';
+  } else if (score > 0.25) {
+    return '😄';
+  }
+  else {
+    return '😐';
+  }
+}
+
 const Home: NextPage = () => {
 
   const [date, setDate] = useState(formatDate(new Date()))
   const [journals, setJournals] = useState<Journals>({})
+  const [analysis, setAnalysis] = useState<Results|null>(null)
   const text = useMemo(() => journals[date] || '', [date, journals])
 
   const updateJournal = useCallback((text: string) => {
@@ -41,7 +76,21 @@ const Home: NextPage = () => {
 
   useEffect(() => {
     console.log(date);
+    setAnalysis(null);
   }, [date])
+
+  const analyzeText = useCallback(async (text: string) => {
+    // create a POST request to the API with the current text
+    const results = await fetch(SENTIMENT_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ text }),
+    });
+    const data = await results.json() as Results;
+    setAnalysis(data);
+  }, [journals]);
 
   return (
     <Container css={{ height: '100vh' }} justify="center" direction="column" display="flex">
@@ -70,9 +119,66 @@ const Home: NextPage = () => {
             </Col>
           </Row>
           <Spacer />
-          <Row css={{ flexGrow: 1 }}>
+          <Row>
             <Textarea value={text} fullWidth onChange={e => updateJournal(e.target.value)} size="xl" minRows={75} placeholder="Tell me about your day"></Textarea>
           </Row>
+          <Spacer />
+          <Row>
+            <Button onClick={() => analyzeText(text)} color="default">Analyze</Button>
+          </Row>
+          <Spacer/>
+          {analysis && (
+            <>
+              <Row justify="center">
+                <Text h3>
+                  Overall Score: {analysis.overall_score}
+                </Text>
+              </Row>
+              {/* Show the smiley emoji */}
+              <Row justify="center">
+                <Text h1>
+                  {scoreToEmoji(analysis.overall_score)}
+                </Text>
+              </Row>
+              <Spacer />
+              <Row>
+                <Col>
+                  <Card>
+                    <Text>
+                      Positive Keywords:
+                      { analysis.keyword_pos.length > 0 && (
+                        <>
+                          <br/>
+                          <ul>
+                            {analysis.keyword_pos.map(keyword => (
+                              <li key={keyword}><Text>{keyword}</Text></li>
+                            ))}
+                          </ul>
+                        </>
+                      ) || (<Text>None</Text>)}
+                    </Text>
+                  </Card>
+                </Col>
+                <Col>
+                  <Card>
+                    <Text>
+                      Negative Keywords:
+                      { analysis.keyword_neg.length > 0 && (
+                        <>
+                          <br/>
+                          <ul>
+                            {analysis.keyword_neg.map(keyword => (
+                              <li key={keyword}><Text>{keyword}</Text></li>
+                            ))}
+                          </ul>
+                        </>
+                      ) || (<Text>None</Text>)}
+                    </Text>
+                  </Card>
+                </Col>
+              </Row>
+            </>
+          )}
         </Container>
       </Card>
     </Container>
