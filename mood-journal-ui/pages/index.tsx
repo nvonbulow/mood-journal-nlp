@@ -20,7 +20,7 @@ interface Results {
   overall_score: number;
 }
 
-const SENTIMENT_ENDPOINT = "http://localhost:5000/sentiment";
+const SENTIMENT_ENDPOINT = "/sentiment";
 
 const scoreToColor = (score: number) => {
   if (score < 0) {

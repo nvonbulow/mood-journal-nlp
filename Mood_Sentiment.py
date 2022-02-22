@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 # coding: utf-8
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 import nltk
 nltk.download('vader_lexicon')
+nltk.download('punkt')
+nltk.download('stopwords')
 
 app = Flask(__name__)
 
@@ -46,13 +48,21 @@ def sentiment():
     
 # topics = topic_model("today was good so far. I've had a good night sleep and am ready to learn new material. Unfortuantelly I wetted my bed last night so my roommate doesn't want to talk to me anymore :(")
 
+# Serve files from the out/ folder
+@app.route('/', defaults={'path': 'index.html'})
+@app.route('/<path:path>')
+def static_proxy(path):
+    # default path to index.html
+    print('Path ' + path)
+    return send_from_directory('out', path)
+
 @app.after_request
 def after_request(response):
     # enable CORS
     response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Headers', '*')
     return response
 
 # start the flask app
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
